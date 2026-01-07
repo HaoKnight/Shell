@@ -16,7 +16,15 @@ from tkinter import filedialog, messagebox
 from ctypes import windll, byref, c_int, sizeof
 
 # ================= 配置区域 =================
-CONFIG_FILE = os.path.join(os.path.dirname(os.path.abspath(__file__)), "launcher_config.json")
+# 确定配置文件路径 (兼容打包后的 exe 环境)
+if getattr(sys, 'frozen', False):
+    # 如果是打包后的 exe，使用 exe 所在目录
+    base_path = os.path.dirname(sys.executable)
+else:
+    # 如果是脚本直接运行，使用脚本所在目录
+    base_path = os.path.dirname(os.path.abspath(__file__))
+
+CONFIG_FILE = os.path.join(base_path, "launcher_config.json")
 
 def load_config():
     """加载配置文件"""
