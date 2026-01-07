@@ -1,17 +1,21 @@
+# ================= 代码说明 =================
+# 文件名: PotPlayer_Alist_Merged copy.py
+# 功能: 启动 PotPlayer 和 AlistHelper，并在 PotPlayer 关闭后清理相关进程
+# 作者: H_Knight
+# 日期: 2024-06
+# ===========================================
+
 import subprocess
 import time
 import os
 import json
 import sys
 import tkinter as tk
+import tkinter.ttk as ttk
 from tkinter import filedialog, messagebox
+from ctypes import windll, byref, c_int, sizeof
 
 # ================= 配置区域 =================
-# 默认路径（如果配置文件中没有，将使用这些默认值）
-DEFAULT_POTPLAYER = r"  "  #  PotPlayer.exe 的默认路径
-DEFAULT_ALIST_HELPER = r"  "  #  AlistHelper.exe 的默认路径
-# ===========================================
-
 CONFIG_FILE = os.path.join(os.path.dirname(os.path.abspath(__file__)), "launcher_config.json")
 
 def load_config():
@@ -32,46 +36,161 @@ def save_config(config):
     except Exception as e:
         print(f"无法保存配置: {e}")
 
-def get_valid_path(current_path, key_name, display_name, config):
+def initial_setup_dialog(config):
     """
-    检查路径是否存在，如果不存在则弹出文件选择框让用户重新选择。
-    并自动更新配置文件。
+    弹出配置窗口，允许用户手动输入或选择路径
+    如果是第一次运行或配置文件丢失，将会调用此函数
     """
-    while True:
-        if current_path and os.path.exists(current_path):
-            return current_path
+    # 预读取当前配置，如果没有则为空字符串
+    current_alist = config.get("alist_helper_path", "")
+    current_pot = config.get("potplayer_path", "")
+    
+    # (不再重置无效路径为空，而是保留并在后续界面中标记为红色)
+
+    # 创建 GUI 主窗口 (tkinter)
+    root = tk.Tk()
+    root.title("路径配置 - PotPlayer & AlistHelper")
+    
+    # --- Windows 11 风格优化 ---
+    # 尝试开启 Windows 11 窗口圆角 (DWMWA_WINDOW_CORNER_PREFERENCE = 33, DWMWCP_ROUND = 2)
+    try:
+        DWMWA_WINDOW_CORNER_PREFERENCE = 33
+        VAL = c_int(2)
+        windll.dwmapi.DwmSetWindowAttribute(c_int(root.winfo_id()), DWMWA_WINDOW_CORNER_PREFERENCE, byref(VAL), sizeof(VAL))
+    except Exception:
+        pass
+    
+    # 配置 ttk 样式
+    style = ttk.Style()
+    # 'vista' 主题在 Windows 上通常对应较现代的系统控件样式
+    if 'vista' in style.theme_names():
+        style.theme_use('vista')
+    
+    # 配置通用字体
+    default_font = ("Microsoft YaHei", 9)
+    style.configure(".", font=default_font)
+    style.configure("TButton", font=default_font)
+    style.configure("TLabel", font=default_font)
+    style.configure("TEntry", font=default_font)
+
+    # 计算屏幕中心位置，使窗口居中显示
+    window_w, window_h = 600, 200                         # 窗口尺寸 (稍微调高一点适应 padding)
+    screen_w = root.winfo_screenwidth()                   # 屏幕宽度
+    screen_h = root.winfo_screenheight()                  # 屏幕高度
+    x = (screen_w - window_w) // 2                        # 计算居中位置的 X 坐标
+    y = (screen_h - window_h) // 2                        # 计算居中位置的 Y 坐标
+    root.geometry(f"{window_w}x{window_h}+{x}+{y}")       # 设置窗口大小和位置
+    
+    # 禁止调整窗口大小，并保持窗口在最前端
+    root.resizable(False, False)
+    root.attributes("-topmost", True)
+
+    # 定义 tkinter 变量，用于绑定输入框内容
+    alist_var = tk.StringVar(value=current_alist)
+    pot_var = tk.StringVar(value=current_pot)
+    
+    # 创建布局容器 Frame
+    frame = tk.Frame(root, padx=20, pady=20)
+    frame.pack(fill=tk.BOTH, expand=True)
+    
+    # Grid 网格布局配置，让输入框(column 1)自动拉伸
+    frame.columnconfigure(1, weight=1)
+
+    # --- 第一行: PotPlayer 设置 ---
+    ttk.Label(frame, text="PotPlayer 路径:").grid(row=0, column=0, sticky="w", pady=5)
+    e2 = tk.Entry(frame, textvariable=pot_var, font=("Microsoft YaHei", 9), relief="flat", bd=1, highlightthickness=1, highlightcolor="#0067C0")
+    e2.grid(row=0, column=1, sticky="ew", padx=5, pady=5, ipady=4)
+    
+    # 如果初始路径无效且非空，显示为红色
+    if current_pot and not os.path.exists(current_pot):
+        e2.config(fg="#E81123")
+    
+    # 当用户修改时恢复黑色
+    def on_pot_change(*args):
+        e2.config(fg="#000000")
+    pot_var.trace("w", on_pot_change)
+    
+    # PotPlayer 选择文件按钮的回调函数
+    def sel_pot():
+        p = filedialog.askopenfilename(title="选择 PotPlayer.exe", filetypes=[("Executable", "*.exe")])
+        if p: pot_var.set(os.path.normpath(p)) # 规范化路径分隔符
+    
+    ttk.Button(frame, text="选择...", command=sel_pot).grid(row=0, column=2, padx=5, pady=5)
+
+    # --- 第二行: AlistHelper 设置 ---
+    ttk.Label(frame, text="AlistHelper 路径:").grid(row=1, column=0, sticky="w", pady=5)
+    e1 = tk.Entry(frame, textvariable=alist_var, font=("Microsoft YaHei", 9), relief="flat", bd=1, highlightthickness=1, highlightcolor="#0067C0")
+    e1.grid(row=1, column=1, sticky="ew", padx=5, pady=5, ipady=4)
+    
+    # 如果初始路径无效且非空，显示为红色
+    if current_alist and not os.path.exists(current_alist):
+        e1.config(fg="#E81123")
         
-        # 路径不存在，初始化 tkinter 环境用于弹窗
-        root = tk.Tk()
-        root.withdraw() # 隐藏主窗口
-        root.attributes("-topmost", True) # 确保弹窗在最前
+    # 当用户修改时恢复黑色
+    def on_alist_change(*args):
+        e1.config(fg="#000000")
+    alist_var.trace("w", on_alist_change)
+    
+    # AlistHelper 选择文件按钮的回调函数
+    def sel_alist():
+        p = filedialog.askopenfilename(title="选择 AlistHelper.exe", filetypes=[("Executable", "*.exe")])
+        if p: alist_var.set(os.path.normpath(p))
+    
+    ttk.Button(frame, text="选择...", command=sel_alist).grid(row=1, column=2, padx=5, pady=5)
+    
+    # --- 第三行: 说明文字 ---
+    # 第一句红色提示
+    ttk.Label(frame, text="请重新指定错误程序的执行文件路径 (.exe)", foreground="#E81123").grid(row=2, column=0, columnspan=3, pady=(5, 0), sticky="w")
+    # 第二句黑色/深灰色说明
+    ttk.Label(frame, text="指定后将自动保存配置并在下次直接运行。", foreground="#555555").grid(row=3, column=0, columnspan=3, pady=(0, 5), sticky="w")
+
+    # --- 第四行: 底部按钮 ---
+    btn_frame = ttk.Frame(frame)
+    btn_frame.grid(row=4, column=0, columnspan=3, pady=5)
+
+    # 用于在闭包中保存结果状态
+    result_state = {"saved": False}
+
+    # "保存并启动" 按钮的回调函数
+    def on_confirm():
+        # 获取输入框内容并去除首尾空白和引号
+        p1 = alist_var.get().strip().strip('"') 
+        p2 = pot_var.get().strip().strip('"')
         
-        # 提示用户
-        msg = f"错误: 找不到路径 [{display_name}]。 \n\n请点击【确定】手动选择正确的 .exe 文件路径。"
-        user_response = messagebox.askokcancel(f"配置错误 - [{display_name}]", msg)
-        
-        if not user_response:
-            # 用户点击取消，退出程序
-            root.destroy()
-            sys.exit(0)
-            
-        # 弹出文件选择框
-        new_path = filedialog.askopenfilename(
-            title=f"请选择 [{display_name}] 的执行文件",
-            filetypes=[("Executable Files", "*.exe"), ("All Files", "*.*")],
-            initialdir=os.path.dirname(current_path) if current_path and os.path.dirname(current_path) else None
-        )
-        
+        err_msgs = []
+        # 简单验证路径是否存在
+        if not (p1 and os.path.exists(p1)):
+            err_msgs.append("AlistHelper 路径无效或不存在。")
+        if not (p2 and os.path.exists(p2)):
+            err_msgs.append("PotPlayer 路径无效或不存在。")
+        if err_msgs:
+            messagebox.showwarning("路径错误", "\n".join(err_msgs), parent=root)
+            return
+
+        # 更新配置字典
+        config["alist_helper_path"] = p1
+        config["potplayer_path"] = p2
+        # 保存到本地 JSON 文件
+        save_config(config)
+        result_state["saved"] = True
+        root.destroy() # 关闭窗口
+
+    # "取消" 按钮的回调函数
+    def on_cancel():
         root.destroy()
-        
-        if new_path:
-            # 用户选择了新路径
-            current_path = os.path.normpath(new_path)
-            config[key_name] = current_path
-            save_config(config)
-        else:
-            # 用户在文件选择框点了取消，退出程序
-            sys.exit(0)
+
+    # 放置按钮
+    ttk.Button(btn_frame, text="保存并启动", command=on_confirm, width=15).pack(side=tk.LEFT, padx=10)
+    ttk.Button(btn_frame, text="取消", command=on_cancel, width=15).pack(side=tk.LEFT, padx=10)
+
+    # 处理窗口右上角关闭按钮事件，等同于取消
+    root.protocol("WM_DELETE_WINDOW", on_cancel)
+    
+    # 进入 GUI 事件循环，等待用户操作
+    root.mainloop()
+    
+    # 返回保存状态：True 表示已保存配置可继续，False 表示用户取消
+    return result_state["saved"]
 
 def kill_process(process_name):
     """
@@ -88,15 +207,22 @@ def main():
     # 1. 加载配置
     config = load_config()
     
-    # 2. 获取并验证路径 (优先使用配置文件的，否则使用默认)
-    potplayer_path = config.get("potplayer_path", DEFAULT_POTPLAYER)
-    alist_helper_path = config.get("alist_helper_path", DEFAULT_ALIST_HELPER)
-    
-    # 验证 AlistHelper 路径
-    alist_helper_path = get_valid_path(alist_helper_path, "alist_helper_path", "AlistHelper", config)
-    
-    # 验证 PotPlayer 路径
-    potplayer_path = get_valid_path(potplayer_path, "potplayer_path", "PotPlayer", config)
+    # 2. 验证路径 (如果路径缺失或无效，则统一弹出设置窗口)
+    potplayer_path = config.get("potplayer_path", "")
+    alist_helper_path = config.get("alist_helper_path", "")
+
+    is_pot_valid = potplayer_path and os.path.exists(potplayer_path)
+    is_alist_valid = alist_helper_path and os.path.exists(alist_helper_path)
+
+    if not (is_pot_valid and is_alist_valid):
+        # 任意一个路径无效，弹出配置窗口进行设置
+        success = initial_setup_dialog(config)
+        if not success:
+            sys.exit(0) # 用户取消或关闭窗口
+            
+        # 重新从更新后的配置中获取路径
+        potplayer_path = config.get("potplayer_path")
+        alist_helper_path = config.get("alist_helper_path")
 
     try:
         # 3. 启动 AlistHelper
