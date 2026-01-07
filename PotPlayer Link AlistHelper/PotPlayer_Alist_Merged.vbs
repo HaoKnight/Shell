@@ -1,17 +1,17 @@
-' åˆ›å»º WScript.Shell å¯¹è±¡ä»¥è¿è¡Œå‘½ä»¤
+' ´´½¨ WScript.Shell ¶ÔÏóÒÔÔËĞĞÃüÁî
 Set ws = WScript.CreateObject("WScript.Shell")
 
-' å¯åŠ¨ AlistHelperï¼š1=æ˜¾ç¤ºçª—å£ï¼ŒFalse=ä¸ç­‰å¾…ç¨‹åºç»“æŸç«‹å³æ‰§è¡Œä¸‹ä¸€è¡Œ
+' Æô¶¯ AlistHelper£º1=ÏÔÊ¾´°¿Ú£¬False=²»µÈ´ı³ÌĞò½áÊøÁ¢¼´Ö´ĞĞÏÂÒ»ĞĞ
 ws.Run """C:\Users\haoxi\AppData\Local\Programs\AlistHelper\alisthelper.exe"" autostart", 1, False
 
-' å¯åŠ¨ PotPlayerï¼š1=æ˜¾ç¤ºçª—å£ï¼ŒTrue=è„šæœ¬æš‚åœç­‰å¾… PotPlayer å…³é—­
+' Æô¶¯ PotPlayer£º1=ÏÔÊ¾´°¿Ú£¬True=½Å±¾ÔİÍ£µÈ´ı PotPlayer ¹Ø±Õ
 ws.Run """C:\ProgramData\Microsoft\Windows\Start Menu\Programs\PotPlayer\PotPlayer 64 bit.lnk""", 1, True
 
-' PotPlayer å…³é—­åæ‰§è¡Œï¼šå¼ºåˆ¶ç»“æŸ AlistHelper è¿›ç¨‹ï¼Œ0=éšè—çª—å£
+' PotPlayer ¹Ø±ÕºóÖ´ĞĞ£ºÇ¿ÖÆ½áÊø AlistHelper ½ø³Ì£¬0=Òş²Ø´°¿Ú
 ws.Run "taskkill /f /im AlistHelper.exe", 0, True
 
-' å¼ºåˆ¶ç»“æŸ alist è¿›ç¨‹ï¼Œé¿å…åå°æ®‹ç•™
+' Ç¿ÖÆ½áÊø alist ½ø³Ì£¬±ÜÃâºóÌ¨²ĞÁô
 ws.Run "taskkill /f /im alist.exe", 0, True
 
-' å¼ºåˆ¶ç»“æŸ Rclone è¿›ç¨‹ï¼Œæ¸…ç†æŒ‚è½½æœåŠ¡
+' Ç¿ÖÆ½áÊø Rclone ½ø³Ì£¬ÇåÀí¹ÒÔØ·şÎñ
 ws.Run "taskkill /f /im Rclone.exe", 0, True
