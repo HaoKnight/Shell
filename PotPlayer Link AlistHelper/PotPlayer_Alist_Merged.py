@@ -57,7 +57,7 @@ def initial_setup_dialog(config):
 
     # 创建 GUI 主窗口 (tkinter)
     root = tk.Tk()
-    root.title("路径配置 - PotPlayer & AlistHelper")
+    root.title("PotPlayer & AlistHelper    By：H_Knight")
     
     # --- Windows 11 风格优化 ---
     # 尝试开启 Windows 11 窗口圆角 (DWMWA_WINDOW_CORNER_PREFERENCE = 33, DWMWCP_ROUND = 2)
@@ -150,7 +150,7 @@ def initial_setup_dialog(config):
     # 第一句红色提示
     ttk.Label(frame, text="请重新指定错误程序的执行文件路径 (.exe)", foreground="#E81123").grid(row=2, column=0, columnspan=3, pady=(5, 0), sticky="w")
     # 第二句黑色/深灰色说明
-    ttk.Label(frame, text="指定后将自动保存配置并在下次直接运行。", foreground="#555555").grid(row=3, column=0, columnspan=3, pady=(0, 5), sticky="w")
+    ttk.Label(frame, text="注：指定后将自动保存配置并在下次直接运行,不再显示此窗口。", foreground="#6A6A6A").grid(row=3, column=0, columnspan=3, pady=(0, 5), sticky="w")
 
     # --- 第四行: 底部按钮 ---
     btn_frame = ttk.Frame(frame)
